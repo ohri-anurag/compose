@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 04dcf8bad9d644ef7fc6e09dda614634c513a7c8609828432482d83ca5f2cfa1
+-- hash: 28aac35fd1150e5b71772c3c6b107f2407d5a7d117eb9a90360c37ca6ed13d3f
 
 name:           compose
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , binary
     , bytestring
   default-language: Haskell2010
 
@@ -46,6 +47,7 @@ executable compose
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , binary
     , bytestring
     , compose
   default-language: Haskell2010
@@ -60,6 +62,7 @@ test-suite compose-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , binary
     , bytestring
     , compose
   default-language: Haskell2010
