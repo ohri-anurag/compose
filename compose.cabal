@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9f287d254890187cc11e0c5cb10e148c167bc79d9ac74c826a258fcdb2c5b788
+-- hash: ced4ff4a0d4aee72dbb35a74447145b73dcccb3ba349905ffcec05322dc5a9f2
 
 name:           compose
 version:        0.1.0.0
@@ -37,6 +37,7 @@ library
       base >=4.7 && <5
     , binary
     , bytestring
+    , safe
     , vector
   default-language: Haskell2010
 
@@ -52,6 +53,7 @@ executable compose
     , binary
     , bytestring
     , compose
+    , safe
     , vector
   default-language: Haskell2010
 
@@ -68,5 +70,6 @@ test-suite compose-test
     , binary
     , bytestring
     , compose
+    , safe
     , vector
   default-language: Haskell2010

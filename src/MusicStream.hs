@@ -1,72 +1,138 @@
+{-# LANGUAGE LambdaCase #-}
 module MusicStream where
 
 import qualified Data.ByteString.Lazy as B
+import Data.Maybe (mapMaybe)
 import Data.Ratio
 import qualified Data.Vector as V
 import Data.Word (Word8)
+import qualified Safe as S
 
-type DataVector = V.Vector Integer
+type DataVector = V.Vector Double
 
-data Stream
-    = SingleChannel DataVector
-    | DualChannel DataVector DataVector
+newtype SingleChannel = SC
+    { stream :: DataVector
+    } deriving Show
+
+data DualChannel = DC
+    { left :: DataVector
+    , right :: DataVector
+    } deriving Show
+
+data Channel
+    = SingleChannel SingleChannel
+    | DualChannel DualChannel
     deriving Show
-
-instance Semigroup Stream where
-    SingleChannel x <> SingleChannel y =
-        SingleChannel $ x <> y
-    DualChannel u v <> DualChannel w x =
-        DualChannel (u <> w) (v <> x)
-    SingleChannel x <> DualChannel y z =
-        DualChannel (x <> y) (x <> z)
-    DualChannel x y <> SingleChannel z =
-        DualChannel (x <> z) (y <> z)
-
 
 data MusicStream = MusicStream
     { samplingRate :: Int
     , bytesPerSample :: Int
-    , stream :: Stream
+    , channel :: Channel
     }
 
+instance Semigroup SingleChannel where
+    SC x <> SC y = SC $ x <> y
+
+instance Semigroup DualChannel where
+    DC u v <> DC w x = DC (u <> w) (v <> x)
+
+instance Semigroup Channel where
+    SingleChannel x <> SingleChannel y =
+        SingleChannel $ x <> y
+    DualChannel x <> DualChannel y =
+        DualChannel (x <> y)
+    SingleChannel (SC x) <> DualChannel (DC y z) =
+        DualChannel (DC (x <> y) (x <> z))
+    DualChannel (DC x y) <> SingleChannel (SC z) =
+        DualChannel (DC (x <> z) (y <> z))
+
 instance Semigroup MusicStream where
-    -- For now assume that both have equal samplingRate and bytesPerSample
+    -- TODO: For now assume that both have equal samplingRate and bytesPerSample
     x <> y = MusicStream
         { samplingRate = samplingRate x
         , bytesPerSample = bytesPerSample x
-        , stream = stream x <> stream y
+        , channel = channel x <> channel y
         }
 
 instance Monoid MusicStream where
-    mempty = MusicStream 1 1 (SingleChannel V.empty)
+    mempty = MusicStream 1 1 (SingleChannel $ SC V.empty)
 
-sampleSineWave :: Int -> Int -> Int -> Int -> Int -> Maybe Stream
-sampleSineWave samplingRate bytesPerSample frequency duration channels
+isDualChannelStream :: Channel -> Bool
+isDualChannelStream (DualChannel _) = True
+isDualChannelStream _ = False
+
+sampleSineWave :: Int -> Double -> Double -> Int -> Maybe Channel
+sampleSineWave samplingRate frequency duration channels
     | channels == 1 =
-        Just $ SingleChannel stream
+        Just $ SingleChannel $ SC channel
     | channels == 2 =
-        Just $ DualChannel stream stream
+        Just $ DualChannel $ DC channel channel
     | otherwise =
         Nothing
     where
-        stream = V.map waveFn $ V.generate (samplingRate * duration) (\i -> fromIntegral i * period)
+        channel = V.map waveFn $ V.generate (round $ fromIntegral samplingRate * duration) (\i -> fromIntegral i * period)
 
         period = 1 % samplingRate
 
-        amplitude = 2.0 ^ (8 * bytesPerSample - 1) - 1
-
-        waveFn :: Ratio Int -> Integer
-        waveFn t = round $ amplitude *
-                    sin (2 * pi * fromIntegral frequency * (fromIntegral (numerator t) / fromIntegral (denominator t)))
+        waveFn t = sin (2 * pi * frequency * (fromIntegral (numerator t) / fromIntegral (denominator t)))
 
 createBasicMusicStream
     :: Int          -- samplingRate
     -> Int          -- bytesPerSample
-    -> Int          -- frequency
-    -> Int          -- duration
+    -> Double       -- frequency
+    -> Double       -- duration
     -> Int          -- channels
     -> Maybe MusicStream
 createBasicMusicStream samplingRate bytesPerSample frequency duration channels =
-    MusicStream samplingRate bytesPerSample <$> stream
+    MusicStream samplingRate bytesPerSample <$> channel
     where
-        stream = sampleSineWave samplingRate bytesPerSample frequency duration channels
+        channel = sampleSineWave samplingRate frequency duration channels
+
+convertSingleToDouble :: SingleChannel -> DualChannel
+convertSingleToDouble (SC v) = DC v v
+
+superimpose :: [MusicStream] -> [Int] -> Maybe MusicStream
+superimpose [] _ = Nothing
+superimpose musicStreams@(x:_) weights =
+    -- TODO: Assume that sampling rates and bytes per sample are equal
+    let
+        rate = samplingRate x
+        bps = bytesPerSample x
+
+        streams = map channel musicStreams
+
+        singleStreams = mapMaybe (\case
+            SingleChannel (SC s) -> Just s
+            DualChannel _ -> Nothing
+            ) streams
+        dualStreams = mapMaybe (\case
+            SingleChannel _ -> Nothing
+            DualChannel (DC l r) -> Just (l, r)
+            ) streams
+
+        headMay v
+            | V.null v  = Nothing
+            | otherwise = Just $ V.head v
+
+        tailMay v
+            | V.null v  = Nothing
+            | otherwise = Just $ V.tail v
+
+        addStreams = V.fromList . addStreams'
+
+        addStreams' xss
+            | null heads = []
+            | otherwise  = sum weightedValues / weightSum : addStreams' (mapMaybe tailMay xss)
+            where
+                heads = mapMaybe headMay xss
+
+                weightedValues = zipWith (\ a b -> a * fromIntegral b) heads weights
+
+                weightSum = fromIntegral $ sum weights
+    in
+        Just . MusicStream rate bps $
+            if length singleStreams == length musicStreams
+                then SingleChannel $ SC $ addStreams singleStreams
+                else DualChannel $ DC (addStreams $ map fst dualStreams) (addStreams $ map snd dualStreams)
+
+

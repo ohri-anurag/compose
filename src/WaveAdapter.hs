@@ -14,11 +14,11 @@ process :: String -> MusicStream -> IO ()
 process fileName musicStream = do
     let
         bytes = runPut $
-            case stream musicStream of
-                SingleChannel channel ->
+            case channel musicStream of
+                SingleChannel (SC channel) ->
                     waveFile 1 bps sr $ convert channel
 
-                DualChannel channel1 channel2 ->
+                DualChannel (DC channel1 channel2) ->
                     waveFile 2 bps sr (combine (fromIntegral bps) (convert channel1) (convert channel2))
 
     B.writeFile fileName bytes
@@ -35,11 +35,11 @@ process fileName musicStream = do
             where
                 min = abs $ if V.null channel then 0 else V.minimum channel
 
-                oneByte :: Integer -> Word8
-                oneByte i = fromIntegral $ i + min
+                oneByte :: Double -> Word8
+                oneByte i = fromIntegral $ round $ 27 * (i + min)
 
-                twoBytes :: Integer -> B.ByteString
-                twoBytes = runPut . putWord16le . fromIntegral
+                twoBytes :: Double -> B.ByteString
+                twoBytes = runPut . putWord16le . fromIntegral . round . (*) 127
 
 combine :: Int64 -> B.ByteString -> B.ByteString -> B.ByteString
 combine num bytes1 bytes2
