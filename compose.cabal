@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ced4ff4a0d4aee72dbb35a74447145b73dcccb3ba349905ffcec05322dc5a9f2
+-- hash: 7d393064c434953ef7fd1073a854f2782a3ca23e0cd494913bba86446b6091cc
 
 name:           compose
 version:        0.1.0.0
@@ -34,9 +34,11 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , binary
     , bytestring
+    , hspec
     , safe
     , vector
   default-language: Haskell2010
@@ -49,10 +51,12 @@ executable compose
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , binary
     , bytestring
     , compose
+    , hspec
     , safe
     , vector
   default-language: Haskell2010
@@ -61,15 +65,18 @@ test-suite compose-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      MusicStreamSpec
       Paths_compose
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
     , binary
     , bytestring
     , compose
+    , hspec
     , safe
     , vector
   default-language: Haskell2010

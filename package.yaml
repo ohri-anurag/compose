@@ -25,6 +25,8 @@ dependencies:
 - binary
 - vector
 - safe
+- QuickCheck
+- hspec
 
 library:
   source-dirs: src

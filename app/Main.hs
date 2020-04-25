@@ -31,7 +31,15 @@ import WaveAdapter
   -- process "test.wav" bstr
   -- putStrLn "All Done!!"
 main :: IO ()
-main = swatKats
+main = do
+  -- swatKats
+  let freqs = [(82.41, 1), (110, 1)]
+      bstr = mconcat $ mapMaybe (\(f, d) -> createBasicMusicStream 44000 1 f d 1) freqs
+      weights = replicate 10 4 ++ replicate 10 3 ++ replicate 10 2 ++ replicate 10 1
+  -- case superimpose bstr weights of
+  --   Just combined -> process "Chord E.wav" combined
+  --   Nothing -> putStrLn "Failed to superimpose"
+  process "Chord E.wav" bstr
 
 swatKats :: IO ()
 swatKats = do
@@ -129,11 +137,13 @@ swatKats = do
       , (160, 0.3)
       , (0  , 0.1)
       , (180, 0.3)
+
+      , (0, 0.1)
       ]
 
   let
-    bstr1 = mconcat $ mapMaybe (\(f, d) -> createBasicMusicStream 44000 1 (2*f) d 1) frequencies
+    bstr1 = mconcat $ mapMaybe (\(f, d) -> createBasicMusicStream 44000 1 (8*f) d 1) frequencies
     bstr2 = mconcat $ mapMaybe (\(f, d) -> createBasicMusicStream 44000 1 (2*f) d 1) bass
   case superimpose [bstr1, bstr2] [3,1] of
-    Just combined -> process "Swat Kats.wav" combined
+    Just combined -> process "Swat Kats.wav" $ mconcat [bstr2, combined]
     Nothing -> putStrLn "Failed to superimpose"

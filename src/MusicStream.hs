@@ -12,17 +12,17 @@ type DataVector = V.Vector Double
 
 newtype SingleChannel = SC
     { stream :: DataVector
-    } deriving Show
+    } deriving (Eq, Show)
 
 data DualChannel = DC
     { left :: DataVector
     , right :: DataVector
-    } deriving Show
+    } deriving (Eq, Show)
 
 data Channel
     = SingleChannel SingleChannel
     | DualChannel DualChannel
-    deriving Show
+    deriving (Eq, Show)
 
 data MusicStream = MusicStream
     { samplingRate :: Int
@@ -61,8 +61,8 @@ isDualChannelStream :: Channel -> Bool
 isDualChannelStream (DualChannel _) = True
 isDualChannelStream _ = False
 
-sampleSineWave :: Int -> Double -> Double -> Int -> Maybe Channel
-sampleSineWave samplingRate frequency duration channels
+simpleSineWave :: Int -> Double -> Double -> Int -> Maybe Channel
+simpleSineWave samplingRate frequency duration channels
     | channels == 1 =
         Just $ SingleChannel $ SC channel
     | channels == 2 =
@@ -70,11 +70,30 @@ sampleSineWave samplingRate frequency duration channels
     | otherwise =
         Nothing
     where
-        channel = V.map waveFn $ V.generate (round $ fromIntegral samplingRate * duration) (\i -> fromIntegral i * period)
+        channel = V.generate (round $ fromIntegral samplingRate * duration) (\i -> waveFn $ fromIntegral i * period)
 
         period = 1 % samplingRate
 
         waveFn t = sin (2 * pi * frequency * (fromIntegral (numerator t) / fromIntegral (denominator t)))
+
+standingWave :: Int -> Double -> Double -> Int -> Maybe Channel
+standingWave samplingRate frequency duration channels
+    | channels == 1 =
+        Just $ SingleChannel $ SC channel
+    | channels == 2 =
+        Just $ DualChannel $ DC channel channel
+    | otherwise =
+        Nothing
+    where
+        n = 10.0
+
+        channel = V.map waveFn $ V.generate (round $ fromIntegral samplingRate * duration) (\i -> fromIntegral i * period)
+
+        period = 1 % samplingRate
+
+        waveFn t = (/ n) $ sum $ map (\i -> (1.0 / i) * sin (pi * i / (2 * (n + 1))) * timeWave i t) [1..n]
+
+        timeWave i t = sin (2 * pi * i * frequency * (fromIntegral (numerator t) / fromIntegral (denominator t)))
 
 createBasicMusicStream
     :: Int          -- samplingRate
@@ -86,7 +105,7 @@ createBasicMusicStream
 createBasicMusicStream samplingRate bytesPerSample frequency duration channels =
     MusicStream samplingRate bytesPerSample <$> channel
     where
-        channel = sampleSineWave samplingRate frequency duration channels
+        channel = standingWave samplingRate frequency duration channels
 
 convertSingleToDouble :: SingleChannel -> DualChannel
 convertSingleToDouble (SC v) = DC v v
